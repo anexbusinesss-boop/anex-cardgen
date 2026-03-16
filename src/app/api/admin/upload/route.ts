@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
 
 export const config = {
     api: {
@@ -32,18 +30,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'File size must be under 10MB' }, { status: 400 });
         }
 
-        const ext = file.type === 'image/png' ? 'png' : 'jpg';
-        const filename = `template_${Date.now()}.${ext}`;
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-
-        // Ensure upload directory exists
-        await mkdir(uploadDir, { recursive: true });
-
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        await writeFile(path.join(uploadDir, filename), buffer);
-
-        const url = `/uploads/${filename}`;
+        const base64String = buffer.toString('base64');
+        const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        const url = `data:${mimeType};base64,${base64String}`;
 
         // Deactivate all existing templates
         await prisma.templateImage.updateMany({
