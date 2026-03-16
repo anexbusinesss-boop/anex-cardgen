@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { put } from '@vercel/blob';
 
 export const config = {
     api: {
@@ -30,11 +31,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'File size must be under 10MB' }, { status: 400 });
         }
 
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const base64String = buffer.toString('base64');
-        const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-        const url = `data:${mimeType};base64,${base64String}`;
+        const ext = file.type === 'image/png' ? 'png' : 'jpg';
+        const filename = `template_${Date.now()}.${ext}`;
+
+        // Upload to Vercel Blob
+        const blob = await put(filename, file, { access: 'public' });
+        const url = blob.url;
 
         // Deactivate all existing templates
         await prisma.templateImage.updateMany({
