@@ -38,9 +38,16 @@ export default function AdminDashboard() {
             });
             const res = await fetch(`/api/admin/entries?${params}`);
             const json = await res.json();
-            setData(json);
-        } catch {
-            console.error('Failed to fetch entries');
+            
+            if (res.ok) {
+                setData(json);
+            } else {
+                console.error('API Error:', json.error);
+                setData(null);
+            }
+        } catch (err) {
+            console.error('Failed to fetch entries:', err);
+            setData(null);
         } finally {
             setLoading(false);
         }
@@ -102,7 +109,7 @@ export default function AdminDashboard() {
                             className="glass-card"
                             style={{ padding: '20px 24px', textAlign: 'center' }}
                         >
-                            <p style={{ fontSize: 36, fontWeight: 800, color: '#d4a017' }}>{data.total}</p>
+                            <p style={{ fontSize: 36, fontWeight: 800, color: '#d4a017' }}>{data?.total || 0}</p>
                             <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 4 }}>Total Cards Generated</p>
                         </div>
                     </div>
@@ -163,7 +170,7 @@ export default function AdminDashboard() {
                             <div style={{ fontSize: 32 }}>⏳</div>
                             <p style={{ marginTop: 12 }}>Loading entries...</p>
                         </div>
-                    ) : !data || data.entries.length === 0 ? (
+                    ) : !data || !data.entries || data.entries.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: 60, color: 'rgba(255,255,255,0.4)' }}>
                             <div style={{ fontSize: 40 }}>📭</div>
                             <p style={{ marginTop: 12 }}>
@@ -199,7 +206,7 @@ export default function AdminDashboard() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {data.entries.map((entry, idx) => (
+                                    {data?.entries?.map((entry, idx) => (
                                         <tr
                                             key={entry.id}
                                             style={{
@@ -308,7 +315,7 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                {data && !loading && (
+                {data && data.entries && !loading && (
                     <p style={{ textAlign: 'center', marginTop: 16, color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>
                         Showing {data.entries.length} of {data.total} entries
                         {search && ` for "${search}"`}
