@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         const filename = `template_${Date.now()}.${ext}`;
 
         // Upload to Vercel Blob
-        const blob = await put(filename, file, { access: 'public' });
+        const blob = await put(filename, file, { access: 'private' });
         const url = blob.url;
 
         // Deactivate all existing templates
