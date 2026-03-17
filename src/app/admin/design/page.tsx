@@ -62,7 +62,8 @@ export default function AdminDesignPage() {
                 const input = document.getElementById('template-input') as HTMLInputElement;
                 if (input) input.value = '';
             } else {
-                setMessage({ type: 'error', text: data.error || 'Upload failed. Please try again.' });
+                const errorText = data.details ? `${data.error}: ${data.details}` : (data.error || 'Upload failed. Please try again.');
+                setMessage({ type: 'error', text: errorText });
             }
         } catch {
             setMessage({ type: 'error', text: 'Network error. Please try again.' });
