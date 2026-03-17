@@ -99,7 +99,7 @@ export default function HomePage() {
           style={{
             fontSize: 'clamp(28px, 5vw, 48px)',
             fontWeight: 800,
-            background: 'linear-gradient(135deg, #d4a017, #f0c040)',
+            background: 'linear-gradient(135deg, #b38612, #d4a017)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
@@ -109,7 +109,7 @@ export default function HomePage() {
         >
           Eid Wish Card Generator
         </h1>
-        <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: 16, maxWidth: 480, margin: '0 auto' }}>
+        <p style={{ color: 'rgba(0,0,0,0.7)', fontSize: 16, maxWidth: 480, margin: '0 auto', fontWeight: 500 }}>
           Create your personalized Eid Mubarak greeting card and download it in HD quality
         </p>
       </header>
@@ -146,7 +146,7 @@ export default function HomePage() {
             <div>
               <label
                 htmlFor="name"
-                style={{ display: 'block', color: 'rgba(255,255,255,0.8)', marginBottom: 8, fontWeight: 500 }}
+                style={{ display: 'block', color: 'rgba(0,0,0,0.85)', marginBottom: 8, fontWeight: 600 }}
               >
                 Full Name
               </label>
@@ -168,7 +168,7 @@ export default function HomePage() {
             <div>
               <label
                 htmlFor="designation"
-                style={{ display: 'block', color: 'rgba(255,255,255,0.8)', marginBottom: 8, fontWeight: 500 }}
+                style={{ display: 'block', color: 'rgba(0,0,0,0.85)', marginBottom: 8, fontWeight: 600 }}
               >
                 Designation
               </label>
@@ -190,7 +190,7 @@ export default function HomePage() {
             <div>
               <label
                 htmlFor="phone"
-                style={{ display: 'block', color: 'rgba(0,0,0,0.7)', marginBottom: 8, fontWeight: 500 }}
+                style={{ display: 'block', color: 'rgba(0,0,0,0.85)', marginBottom: 8, fontWeight: 600 }}
               >
                 Phone Number
               </label>
@@ -199,7 +199,6 @@ export default function HomePage() {
                 type="tel"
                 placeholder="+880 1XXX-XXXXXX"
                 className="eid-input"
-                style={{ color: '#000', background: 'rgba(0,0,0,0.04)', borderColor: 'rgba(0,0,0,0.1)' }}
                 value={form.phone}
                 onChange={handleChange('phone')}
                 maxLength={20}
@@ -304,10 +303,10 @@ export default function HomePage() {
           fontSize: 13,
         }}
       >
-        <p style={{ fontWeight: 600, color: 'rgba(0,0,0,0.6)', marginBottom: 4 }}>
+        <p style={{ fontWeight: 700, color: 'rgba(0,0,0,0.8)', marginBottom: 4, fontSize: 14 }}>
           Powered By ANEX Business Solution
         </p>
-        <p style={{ fontSize: 12 }}>A gift to LPL Employees for this EID.</p>
+        <p style={{ fontSize: 13, color: 'rgba(0,0,0,0.6)', fontWeight: 500 }}>A gift to LPL Employees for this EID.</p>
       </footer>
     </main>
   );
