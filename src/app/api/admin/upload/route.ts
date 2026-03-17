@@ -44,8 +44,11 @@ export async function POST(req: NextRequest) {
         });
 
         return NextResponse.json({ success: true, url: template.url }, { status: 201 });
-    } catch (error) {
-        console.error('[/api/admin/upload POST]', error);
-        return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    } catch (error: any) {
+        console.error('[/api/admin/upload POST] Detailed Error:', error);
+        return NextResponse.json({ 
+            error: 'Upload failed', 
+            details: error?.message || 'Unknown error during upload process'
+        }, { status: 500 });
     }
 }
