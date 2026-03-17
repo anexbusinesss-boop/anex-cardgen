@@ -28,8 +28,11 @@ export async function POST(req: NextRequest) {
         });
 
         return response;
-    } catch (error) {
-        console.error('[/api/admin/login POST]', error);
-        return NextResponse.json({ error: 'Login failed' }, { status: 500 });
+    } catch (error: any) {
+        console.error('[/api/admin/login POST] Detailed Error:', error);
+        return NextResponse.json({ 
+            error: 'Login failed', 
+            details: error?.message || 'Unknown error'
+        }, { status: 500 });
     }
 }
