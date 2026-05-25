@@ -17,10 +17,10 @@ const CANVAS_SIZE = 1080;
 
 // Text rendered centered in the bottom text area of the template.
 // Black fill, Trebuchet MS font, no shadow — matches the light/white bottom zone.
-const TEXT_CX    = CANVAS_SIZE / 2;    // horizontal centre
-const NAME_Y     = CANVAS_SIZE - 82;   // ~998 — name line
-const DESG_Y     = CANVAS_SIZE - 50;   // ~1030 — designation line
-const PHONE_Y    = CANVAS_SIZE - 22;   // ~1058 — phone line
+const TEXT_CX    = CANVAS_SIZE / 2;
+const NAME_Y     = CANVAS_SIZE - 88;   // moved up 6 px
+const DESG_Y     = CANVAS_SIZE - 56;   // moved up 6 px
+const PHONE_Y    = CANVAS_SIZE - 28;   // moved up 6 px
 
 const CardCanvas = forwardRef<CardCanvasRef, CardCanvasProps>(
   ({ templateUrl, onGenerated }, ref) => {
