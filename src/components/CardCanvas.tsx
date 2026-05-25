@@ -15,26 +15,12 @@ interface CardCanvasProps {
 
 const CANVAS_SIZE = 1080;
 
-// Text rendered centered in the golden bottom strip of the template.
-// White fill + dark shadow keeps it readable on any warm/gold background.
+// Text rendered centered in the bottom text area of the template.
+// Black fill, Trebuchet MS font, no shadow — matches the light/white bottom zone.
 const TEXT_CX    = CANVAS_SIZE / 2;    // horizontal centre
 const NAME_Y     = CANVAS_SIZE - 82;   // ~998 — name line
 const DESG_Y     = CANVAS_SIZE - 50;   // ~1030 — designation line
 const PHONE_Y    = CANVAS_SIZE - 22;   // ~1058 — phone line
-
-function applyShadow(ctx: CanvasRenderingContext2D) {
-  ctx.shadowColor  = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur   = 6;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 1;
-}
-
-function clearShadow(ctx: CanvasRenderingContext2D) {
-  ctx.shadowColor  = 'transparent';
-  ctx.shadowBlur   = 0;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-}
 
 const CardCanvas = forwardRef<CardCanvasRef, CardCanvasProps>(
   ({ templateUrl, onGenerated }, ref) => {
@@ -79,12 +65,12 @@ const CardCanvas = forwardRef<CardCanvasRef, CardCanvasProps>(
           }
         }
 
-        // Text — white with shadow, centred in the gold strip
+        // Text — black, Trebuchet MS, centred in the card's text zone
         ctx.textAlign    = 'center';
         ctx.textBaseline = 'alphabetic';
-        ctx.fillStyle    = '#FFFFFF';
-
-        applyShadow(ctx);
+        ctx.fillStyle    = '#000000';
+        ctx.shadowColor  = 'transparent';
+        ctx.shadowBlur   = 0;
 
         ctx.font = getCanvasFont(36, 700, name);
         ctx.fillText(name, TEXT_CX, NAME_Y);
@@ -94,8 +80,6 @@ const CardCanvas = forwardRef<CardCanvasRef, CardCanvasProps>(
 
         ctx.font = getCanvasFont(22, 400, phone);
         ctx.fillText(phone, TEXT_CX, PHONE_Y);
-
-        clearShadow(ctx);
 
         doneRef.current = true;
         onGenerated?.();

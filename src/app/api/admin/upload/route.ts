@@ -19,16 +19,24 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
         }
 
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-        if (!allowedTypes.includes(file.type)) {
+        const allowedMime = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/x-png']);
+        const allowedExt  = new Set(['jpg', 'jpeg', 'png']);
+        const fileExt     = (file.name.split('.').pop() ?? '').toLowerCase();
+
+        if (!allowedMime.has(file.type.toLowerCase()) && !allowedExt.has(fileExt)) {
             return NextResponse.json({ error: 'Only JPG and PNG files are allowed' }, { status: 400 });
         }
 
-        if (file.size > 10 * 1024 * 1024) {
-            return NextResponse.json({ error: 'File size must be under 10 MB' }, { status: 400 });
+        if (file.size > 15 * 1024 * 1024) {
+            return NextResponse.json({ error: 'File size must be under 15 MB' }, { status: 400 });
         }
 
-        const ext      = file.type === 'image/png' ? 'png' : 'jpg';
+        // Derive extension from MIME type; fall back to filename extension
+        const mimeToExt: Record<string, string> = {
+            'image/png': 'png', 'image/x-png': 'png',
+            'image/jpeg': 'jpg', 'image/jpg': 'jpg',
+        };
+        const ext      = mimeToExt[file.type.toLowerCase()] ?? fileExt ?? 'jpg';
         const filename = `template_${Date.now()}.${ext}`;
 
         let url: string;
