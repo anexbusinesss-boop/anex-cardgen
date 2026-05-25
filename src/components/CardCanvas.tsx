@@ -4,149 +4,182 @@ import { useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 
 import { getCanvasFont } from '@/lib/fontDetect';
 
 export interface CardCanvasRef {
-    generate: (name: string, designation: string, phone: string) => Promise<void>;
-    download: () => Promise<void>;
+  generate: (name: string, designation: string, phone: string) => Promise<void>;
+  download: () => Promise<void>;
 }
 
 interface CardCanvasProps {
-    templateUrl: string | null;
-    onGenerated?: () => void;
+  templateUrl: string | null;
+  onGenerated?: () => void;
 }
 
 const CANVAS_SIZE = 1080;
-const TEXT_X = 460;
-const TEXT_COLOR = '#333333';
+
+// Text rendered centered in the golden bottom strip of the template.
+// White fill + dark shadow keeps it readable on any warm/gold background.
+const TEXT_CX    = CANVAS_SIZE / 2;    // horizontal centre
+const NAME_Y     = CANVAS_SIZE - 82;   // ~998 — name line
+const DESG_Y     = CANVAS_SIZE - 50;   // ~1030 — designation line
+const PHONE_Y    = CANVAS_SIZE - 22;   // ~1058 — phone line
+
+function applyShadow(ctx: CanvasRenderingContext2D) {
+  ctx.shadowColor  = 'rgba(0, 0, 0, 0.45)';
+  ctx.shadowBlur   = 6;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 1;
+}
+
+function clearShadow(ctx: CanvasRenderingContext2D) {
+  ctx.shadowColor  = 'transparent';
+  ctx.shadowBlur   = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+}
 
 const CardCanvas = forwardRef<CardCanvasRef, CardCanvasProps>(
-    ({ templateUrl, onGenerated }, ref) => {
-        const canvasRef = useRef<HTMLCanvasElement>(null);
-        const generatedRef = useRef(false);
+  ({ templateUrl, onGenerated }, ref) => {
+    const canvasRef  = useRef<HTMLCanvasElement>(null);
+    const doneRef    = useRef(false);
 
-        const loadImage = (src: string): Promise<HTMLImageElement> => {
-            return new Promise((resolve, reject) => {
-                const img = new window.Image();
-                img.crossOrigin = 'anonymous';
-                img.onload = () => resolve(img);
-                img.onerror = reject;
-                img.src = src;
-            });
-        };
+    const loadImage = (src: string): Promise<HTMLImageElement> =>
+      new Promise((resolve, reject) => {
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
+        img.onload  = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
 
-        const generate = useCallback(
-            async (name: string, designation: string, phone: string) => {
-                const canvas = canvasRef.current;
-                if (!canvas) return;
+    const generate = useCallback(
+      async (name: string, designation: string, phone: string) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return;
+        canvas.width  = CANVAS_SIZE;
+        canvas.height = CANVAS_SIZE;
 
-                canvas.width = CANVAS_SIZE;
-                canvas.height = CANVAS_SIZE;
+        // Cream background fallback
+        ctx.fillStyle = '#FDF8F0';
+        ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
-                // Fill background
-                ctx.fillStyle = '#f8f4e8';
-                ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        // Draw template (cover-fit)
+        if (templateUrl) {
+          try {
+            const img   = await loadImage(templateUrl);
+            const scale = Math.max(CANVAS_SIZE / img.width, CANVAS_SIZE / img.height);
+            const w     = img.width  * scale;
+            const h     = img.height * scale;
+            const x     = (CANVAS_SIZE - w) / 2;
+            const y     = (CANVAS_SIZE - h) / 2;
+            ctx.drawImage(img, x, y, w, h);
+          } catch {
+            console.error('Failed to load template image');
+          }
+        }
 
-                // Draw template background
-                if (templateUrl) {
-                    try {
-                        const img = await loadImage(templateUrl);
-                        // Cover-fit into 1080x1080
-                        const scale = Math.max(CANVAS_SIZE / img.width, CANVAS_SIZE / img.height);
-                        const w = img.width * scale;
-                        const h = img.height * scale;
-                        const x = (CANVAS_SIZE - w) / 2;
-                        const y = (CANVAS_SIZE - h) / 2;
-                        ctx.drawImage(img, x, y, w, h);
-                    } catch {
-                        console.error('Failed to load template image');
-                    }
-                }
+        // Text — white with shadow, centred in the gold strip
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle    = '#FFFFFF';
 
-                // Draw texts
-                ctx.fillStyle = TEXT_COLOR;
-                ctx.textBaseline = 'alphabetic';
-                ctx.textAlign = 'left';
+        applyShadow(ctx);
 
-                // Name — 35px bold, 70px above bottom
-                ctx.font = getCanvasFont(35, 700, name);
-                ctx.fillText(name, TEXT_X, CANVAS_SIZE - 70);
+        ctx.font = getCanvasFont(36, 700, name);
+        ctx.fillText(name, TEXT_CX, NAME_Y);
 
-                // Designation — 22px normal, 42px above bottom
-                ctx.font = getCanvasFont(22, 400, designation);
-                ctx.fillText(designation, TEXT_X, CANVAS_SIZE - 42);
+        ctx.font = getCanvasFont(22, 400, designation);
+        ctx.fillText(designation, TEXT_CX, DESG_Y);
 
-                // Phone — 22px normal, 18px above bottom
-                ctx.font = getCanvasFont(22, 400, phone);
-                ctx.fillText(phone, TEXT_X, CANVAS_SIZE - 18);
+        ctx.font = getCanvasFont(22, 400, phone);
+        ctx.fillText(phone, TEXT_CX, PHONE_Y);
 
-                generatedRef.current = true;
-                onGenerated?.();
-            },
-            [templateUrl, onGenerated]
-        );
+        clearShadow(ctx);
 
-        const download = useCallback((): Promise<void> => {
-            return new Promise((resolve, reject) => {
-                const canvas = canvasRef.current;
-                if (!canvas || !generatedRef.current) {
-                    resolve();
-                    return;
-                }
-                // Use toBlob() — produces a proper binary PNG file instead of a
-                // base64 data URL, which is more reliable across all browsers and
-                // won't hit the URL length limit on large (1080x1080) canvases.
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        reject(new Error('Failed to create PNG blob'));
-                        return;
-                    }
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.download = 'eid-card.png';
-                    link.href = url;
-                    // Must be in DOM for Firefox to trigger download
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    // Revoke after a short delay to let the browser initiate the download
-                    setTimeout(() => URL.revokeObjectURL(url), 1000);
-                    resolve();
-                }, 'image/png');
-            });
-        }, []);
+        doneRef.current = true;
+        onGenerated?.();
+      },
+      [templateUrl, onGenerated]
+    );
 
-        useImperativeHandle(ref, () => ({ generate, download }), [generate, download]);
+    const download = useCallback((): Promise<void> =>
+      new Promise((resolve, reject) => {
+        const canvas = canvasRef.current;
+        if (!canvas || !doneRef.current) { resolve(); return; }
+        canvas.toBlob((blob) => {
+          if (!blob) { reject(new Error('Failed to create PNG blob')); return; }
+          const url  = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = 'eid-al-adha-card.png';
+          link.href     = url;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          resolve();
+        }, 'image/png');
+      }),
+    []);
 
-        // Draw placeholder when no card generated yet
-        useEffect(() => {
-            const canvas = canvasRef.current;
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-            canvas.width = CANVAS_SIZE;
-            canvas.height = CANVAS_SIZE;
-            ctx.fillStyle = '#1a3d2b';
-            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-            ctx.fillStyle = 'rgba(212, 160, 23, 0.15)';
-            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-            // Decorative text
-            ctx.fillStyle = 'rgba(212, 160, 23, 0.4)';
-            ctx.font = 'bold 52px Trebuchet MS, Arial, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('Eid Mubarak', CANVAS_SIZE / 2, CANVAS_SIZE / 2 - 30);
-            ctx.font = '28px Trebuchet MS, Arial, sans-serif';
-            ctx.fillStyle = 'rgba(255,255,255,0.3)';
-            ctx.fillText('Fill the form to generate your card', CANVAS_SIZE / 2, CANVAS_SIZE / 2 + 40);
-        }, []);
+    useImperativeHandle(ref, () => ({ generate, download }), [generate, download]);
 
-        return (
-            <div className="canvas-container">
-                <canvas ref={canvasRef} />
-            </div>
-        );
-    }
+    // Placeholder canvas — matches the card's cream/gold aesthetic
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      canvas.width  = CANVAS_SIZE;
+      canvas.height = CANVAS_SIZE;
+
+      // Cream gradient background
+      const bg = ctx.createLinearGradient(0, 0, 0, CANVAS_SIZE);
+      bg.addColorStop(0,   '#FDF8F0');
+      bg.addColorStop(0.7, '#F5EAD5');
+      bg.addColorStop(1,   '#EDD9B4');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+      // Gold bottom strip
+      const strip = ctx.createLinearGradient(0, CANVAS_SIZE - 160, 0, CANVAS_SIZE);
+      strip.addColorStop(0, 'rgba(200,150,12,0)');
+      strip.addColorStop(1, 'rgba(200,150,12,0.35)');
+      ctx.fillStyle = strip;
+      ctx.fillRect(0, CANVAS_SIZE - 160, CANVAS_SIZE, 160);
+
+      // Centre text
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+
+      ctx.fillStyle = '#C8102E';
+      ctx.font      = 'bold 72px Georgia, serif';
+      ctx.fillText('EID AL-ADHA', CANVAS_SIZE / 2, CANVAS_SIZE / 2 - 48);
+
+      ctx.fillStyle = '#1B3A6B';
+      ctx.font      = 'italic 52px Georgia, serif';
+      ctx.fillText('Mubarak', CANVAS_SIZE / 2, CANVAS_SIZE / 2 + 30);
+
+      // Divider line
+      ctx.strokeStyle = '#C8960C';
+      ctx.lineWidth   = 2;
+      ctx.beginPath();
+      ctx.moveTo(CANVAS_SIZE / 2 - 140, CANVAS_SIZE / 2 + 72);
+      ctx.lineTo(CANVAS_SIZE / 2 + 140, CANVAS_SIZE / 2 + 72);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.font      = '26px Georgia, Arial, sans-serif';
+      ctx.fillText('Fill the form to generate your card', CANVAS_SIZE / 2, CANVAS_SIZE / 2 + 112);
+    }, []);
+
+    return (
+      <div className="canvas-container">
+        <canvas ref={canvasRef} />
+      </div>
+    );
+  }
 );
 
 CardCanvas.displayName = 'CardCanvas';

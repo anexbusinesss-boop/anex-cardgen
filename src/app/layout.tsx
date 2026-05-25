@@ -1,34 +1,28 @@
 import type { Metadata } from 'next';
-import { Hind_Siliguri } from 'next/font/google';
 import './globals.css';
 
-const hindSiliguri = Hind_Siliguri({
-  weight: ['300', '400', '500', '600', '700'],
-  subsets: ['bengali', 'latin'],
-  variable: '--font-hind-siliguri',
-  display: 'swap',
-});
-
 export const metadata: Metadata = {
-  title: 'Eid Wish Card Generator',
-  description: 'Generate personalized Eid greeting cards with your name and details',
-  keywords: ['Eid', 'greeting card', 'Eid Mubarak', 'card generator'],
+  title: 'Eid Al-Adha Card Generator — LPL',
+  description: 'Generate your personalized Eid Al-Adha Mubarak greeting card',
+  keywords: ['Eid Al-Adha', 'greeting card', 'Eid Mubarak', 'Dr Lal PathLabs'],
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Hind Siliguri — Bengali + Latin support */}
+        {/* Dancing Script — cursive "Mubarak" heading */}
         <link
-          href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className={`${hindSiliguri.variable} antialiased`}>{children}</body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
