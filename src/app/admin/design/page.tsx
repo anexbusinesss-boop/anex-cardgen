@@ -44,8 +44,14 @@ export default function AdminDesignPage() {
     formData.append('template', selectedFile);
     try {
       const res  = await fetch('/api/admin/upload', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (res.ok) {
+      let data: { url?: string; error?: string; details?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        setMessage({ type: 'error', text: `Server error (HTTP ${res.status}). Check server logs.` });
+        return;
+      }
+      if (res.ok && data.url) {
         setCurrentTemplate(data.url);
         setSelectedFile(null);
         setPreviewUrl(null);
@@ -53,11 +59,14 @@ export default function AdminDesignPage() {
         const input = document.getElementById('template-input') as HTMLInputElement;
         if (input) input.value = '';
       } else {
-        const errText = data.details ? `${data.error}: ${data.details}` : (data.error || 'Upload failed. Please try again.');
+        const errText = data.details
+          ? `${data.error}: ${data.details}`
+          : (data.error || 'Upload failed. Please try again.');
         setMessage({ type: 'error', text: errText });
       }
-    } catch {
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setMessage({ type: 'error', text: `Network error: ${msg}` });
     } finally {
       setUploading(false);
     }
