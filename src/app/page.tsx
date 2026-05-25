@@ -1,14 +1,24 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import type { CardCanvasRef } from '@/components/CardCanvas';
 
 const CardCanvas = dynamic(() => import('@/components/CardCanvas'), {
   ssr: false,
   loading: () => (
-    <div className="canvas-container" style={{ background: '#f0f0f0', borderRadius: 16, aspectRatio: '1/1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <span style={{ color: 'rgba(0,0,0,0.2)', fontSize: 18 }}>Loading canvas...</span>
+    <div
+      className="canvas-container"
+      style={{
+        background: 'linear-gradient(160deg, #FDF8F0, #F5EAD5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <span style={{ color: '#C8960C', fontSize: 15, fontWeight: 600, letterSpacing: 0.5 }}>
+        Loading…
+      </span>
     </div>
   ),
 });
@@ -19,10 +29,10 @@ interface FormState {
   phone: string;
 }
 
-const INITIAL_FORM: FormState = { name: '', designation: '', phone: '' };
+const INITIAL: FormState = { name: '', designation: '', phone: '' };
 
 export default function HomePage() {
-  const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [form, setForm] = useState<FormState>(INITIAL);
   const [errors, setErrors] = useState<Partial<FormState>>({});
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -30,44 +40,32 @@ export default function HomePage() {
   const [templateLoaded, setTemplateLoaded] = useState(false);
   const canvasRef = useRef<CardCanvasRef>(null);
 
-  // Fetch template on mount
-  const fetchTemplate = useCallback(async () => {
-    try {
-      const res = await fetch('/api/template');
-      const data = await res.json();
-      setTemplateUrl(data.url || null);
-    } catch {
-      setTemplateUrl(null);
-    } finally {
-      setTemplateLoaded(true);
-    }
+  useEffect(() => {
+    fetch('/api/template')
+      .then((r) => r.json())
+      .then((d) => setTemplateUrl(d.url || null))
+      .catch(() => setTemplateUrl(null))
+      .finally(() => setTemplateLoaded(true));
   }, []);
 
-  // Use effect equivalent with useCallback
-  if (!templateLoaded) {
-    fetchTemplate();
-  }
-
   const validate = (): boolean => {
-    const newErrors: Partial<FormState> = {};
-    if (!form.name.trim()) newErrors.name = 'Name is required';
-    if (!form.designation.trim()) newErrors.designation = 'Designation is required';
-    if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const e: Partial<FormState> = {};
+    if (!form.name.trim()) e.name = 'Name is required';
+    if (!form.designation.trim()) e.designation = 'Designation is required';
+    if (!form.phone.trim()) e.phone = 'Phone is required';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleGenerate = async () => {
     if (!validate()) return;
     setLoading(true);
     try {
-      // Save entry to DB
       await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      // Generate canvas
       await canvasRef.current?.generate(form.name, form.designation, form.phone);
       setGenerated(true);
     } catch (err) {
@@ -77,236 +75,350 @@ export default function HomePage() {
     }
   };
 
-  const handleDownload = async () => {
-    await canvasRef.current?.download();
-  };
+  const handleDownload = () => canvasRef.current?.download();
 
-  const handleChange = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
+  const handleChange =
+    (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      setForm((prev) => ({ ...prev, [field]: e.target.value }));
+      if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+    };
 
   return (
-    <main className="min-h-screen py-8 px-4">
-      {/* Header */}
-      <header className="text-center mb-10 animate-fade-in-up">
-        <div className="inline-flex items-center gap-3 mb-4">
-          <span style={{ fontSize: 40 }}>🌙</span>
-          <span style={{ fontSize: 40 }}>⭐</span>
-          <span style={{ fontSize: 40 }}>🌙</span>
-        </div>
-        <h1
+    <main
+      style={{
+        minHeight: '100vh',
+        padding: '40px 16px 56px',
+        position: 'relative',
+        zIndex: 1,
+      }}
+    >
+      {/* ── Header ───────────────────────────────────── */}
+      <header className="anim-up" style={{ textAlign: 'center', marginBottom: 52 }}>
+
+        {/* Top badge */}
+        <div
           style={{
-            fontSize: 'clamp(28px, 5vw, 48px)',
-            fontWeight: 800,
-            background: 'linear-gradient(135deg, #b38612, #d4a017)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            letterSpacing: '-0.5px',
-            marginBottom: 8,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 10,
+            background: 'rgba(255,255,255,0.9)',
+            border: '1px solid rgba(200,150,12,0.20)',
+            borderRadius: 40,
+            padding: '7px 20px',
+            marginBottom: 32,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
           }}
         >
-          Eid Wish Card Generator
-        </h1>
-        <p style={{ color: 'rgba(0,0,0,0.7)', fontSize: 16, maxWidth: 480, margin: '0 auto', fontWeight: 500 }}>
-          Create your personalized Eid Mubarak greeting card and download it in HD quality
+          {/* Red dot */}
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: '#C8102E',
+              display: 'inline-block',
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              color: '#1B3A6B',
+              letterSpacing: 0.8,
+              textTransform: 'uppercase',
+            }}
+          >
+            ANEX Business Solution
+          </span>
+          {/* Gold dot */}
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: '#C8960C',
+              display: 'inline-block',
+              flexShrink: 0,
+            }}
+          />
+        </div>
+
+        {/* Main title — mirrors the card design */}
+        <div style={{ lineHeight: 1 }}>
+          <h1
+            style={{
+              fontSize: 'clamp(44px, 9vw, 86px)',
+              fontWeight: 900,
+              color: '#C8102E',
+              letterSpacing: '-1px',
+              textTransform: 'uppercase',
+              fontFamily: 'Georgia, "Times New Roman", serif',
+              margin: 0,
+            }}
+          >
+            EID AL-ADHA
+          </h1>
+          <div
+            style={{
+              fontSize: 'clamp(30px, 6vw, 60px)',
+              color: '#1B3A6B',
+              fontFamily: "'Dancing Script', Georgia, cursive",
+              fontWeight: 400,
+              marginTop: 4,
+              letterSpacing: 1,
+            }}
+          >
+            Mubarak
+          </div>
+        </div>
+
+        {/* Gold divider */}
+        <div
+          style={{
+            height: '1.5px',
+            background:
+              'linear-gradient(90deg, transparent, #E4AE28 30%, #E4AE28 70%, transparent)',
+            maxWidth: 260,
+            margin: '22px auto',
+          }}
+        />
+
+        <p
+          style={{
+            color: '#7070A0',
+            fontSize: 15,
+            maxWidth: 420,
+            margin: '0 auto',
+            lineHeight: 1.75,
+            fontWeight: 400,
+          }}
+        >
+          Create your personalized greeting card and download it in HD quality
         </p>
       </header>
 
-      {/* Main content */}
+      {/* ── Two-column layout ────────────────────────── */}
       <div
         style={{
-          maxWidth: 1100,
+          maxWidth: 1060,
           margin: '0 auto',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: 32,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+          gap: 28,
           alignItems: 'start',
         }}
       >
-        {/* Form Panel */}
-        <div className="glass-card" style={{ padding: 32 }}>
-          <h2
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: '#d4a017',
-              marginBottom: 24,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}
-          >
-            <span>✏️</span> Your Details
-          </h2>
+        {/* ── Form Panel ───────────────────────────── */}
+        <div className="lpl-card" style={{ padding: '32px 28px' }}>
+          {/* Panel header */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 3,
+                  height: 20,
+                  background: '#C8102E',
+                  borderRadius: 2,
+                }}
+              />
+              <h2
+                style={{ fontSize: 17, fontWeight: 700, color: '#1B3A6B', margin: 0 }}
+              >
+                Your Details
+              </h2>
+            </div>
+            <p style={{ fontSize: 13, color: '#9090AA', marginLeft: 13 }}>
+              Fill in your info to personalise the card
+            </p>
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Name */}
             <div>
-              <label
-                htmlFor="name"
-                style={{ display: 'block', color: 'rgba(0,0,0,0.85)', marginBottom: 8, fontWeight: 600 }}
-              >
+              <label htmlFor="name" className="field-label">
                 Full Name
               </label>
               <input
                 id="name"
                 type="text"
                 placeholder="Enter your full name"
-                className="eid-input"
+                className="lpl-input"
                 value={form.name}
                 onChange={handleChange('name')}
                 maxLength={80}
               />
-              {errors.name && (
-                <p style={{ color: '#ff7b7b', fontSize: 13, marginTop: 5 }}>{errors.name}</p>
-              )}
+              {errors.name && <p className="field-error">{errors.name}</p>}
             </div>
 
             {/* Designation */}
             <div>
-              <label
-                htmlFor="designation"
-                style={{ display: 'block', color: 'rgba(0,0,0,0.85)', marginBottom: 8, fontWeight: 600 }}
-              >
+              <label htmlFor="designation" className="field-label">
                 Designation
               </label>
               <input
                 id="designation"
                 type="text"
-                placeholder="e.g. Software Engineer"
-                className="eid-input"
+                placeholder="e.g. Senior Executive"
+                className="lpl-input"
                 value={form.designation}
                 onChange={handleChange('designation')}
                 maxLength={80}
               />
               {errors.designation && (
-                <p style={{ color: '#ff7b7b', fontSize: 13, marginTop: 5 }}>{errors.designation}</p>
+                <p className="field-error">{errors.designation}</p>
               )}
             </div>
 
             {/* Phone */}
             <div>
-              <label
-                htmlFor="phone"
-                style={{ display: 'block', color: 'rgba(0,0,0,0.85)', marginBottom: 8, fontWeight: 600 }}
-              >
+              <label htmlFor="phone" className="field-label">
                 Phone Number
               </label>
               <input
                 id="phone"
                 type="tel"
                 placeholder="+880 1XXX-XXXXXX"
-                className="eid-input"
+                className="lpl-input"
                 value={form.phone}
                 onChange={handleChange('phone')}
                 maxLength={20}
               />
-              {errors.phone && (
-                <p style={{ color: '#d32f2f', fontSize: 13, marginTop: 5 }}>{errors.phone}</p>
-              )}
+              {errors.phone && <p className="field-error">{errors.phone}</p>}
             </div>
 
-            {/* Generate button */}
-            <button
-              id="generate-btn"
-              className="btn-primary"
-              onClick={handleGenerate}
-              disabled={loading}
-              style={{ marginTop: 8 }}
-            >
-              {loading ? '⏳ Generating...' : '✨ Generate Card'}
-            </button>
-
-            {/* Download button */}
-            {generated && (
+            {/* Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
               <button
-                id="download-btn"
-                className="btn-secondary"
-                onClick={handleDownload}
+                className="btn-generate"
+                onClick={handleGenerate}
+                disabled={loading}
               >
-                📥 Download HD PNG (1080×1080)
+                {loading ? 'Generating…' : 'Generate My Card'}
               </button>
-            )}
+
+              {generated && (
+                <button
+                  className="btn-download anim-in"
+                  onClick={handleDownload}
+                >
+                  Download HD Card &nbsp;(1080 × 1080 PNG)
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Tips */}
+          {/* Tip box */}
           <div
             style={{
               marginTop: 24,
-              padding: '14px 18px',
-              background: 'rgba(212, 160, 23, 0.08)',
-              borderRadius: 12,
-              border: '1px solid rgba(212, 160, 23, 0.2)',
+              padding: '12px 16px',
+              background: 'rgba(200,150,12,0.06)',
+              borderRadius: 10,
+              border: '1px solid rgba(200,150,12,0.16)',
             }}
           >
-            <p style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13, lineHeight: 1.6 }}>
-              💡 <strong style={{ color: '#c39414' }}>Tip:</strong> Both English and Bengali text is supported. The font will automatically adjust.
+            <p style={{ color: '#8A7A50', fontSize: 12.5, lineHeight: 1.65 }}>
+              <strong style={{ color: '#C8960C' }}>Tip:</strong> English and Bengali
+              text are both supported — the font adjusts automatically.
             </p>
           </div>
         </div>
 
-        {/* Canvas Preview Panel */}
-        <div className="glass-card" style={{ padding: 32 }}>
-          <h2
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              color: '#d4a017',
-              marginBottom: 24,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}
-          >
-            <span>🖼️</span> Card Preview
-          </h2>
+        {/* ── Preview Panel ─────────────────────────── */}
+        <div className="lpl-card" style={{ padding: '32px 28px' }}>
+          {/* Panel header */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 3,
+                  height: 20,
+                  background: '#C8960C',
+                  borderRadius: 2,
+                }}
+              />
+              <h2
+                style={{ fontSize: 17, fontWeight: 700, color: '#1B3A6B', margin: 0 }}
+              >
+                Card Preview
+              </h2>
+            </div>
+            <p style={{ fontSize: 13, color: '#9090AA', marginLeft: 13 }}>
+              1080 × 1080 px · PNG
+            </p>
+          </div>
 
-          <CardCanvas ref={canvasRef} templateUrl={templateUrl} onGenerated={() => setGenerated(true)} />
+          <CardCanvas
+            ref={canvasRef}
+            templateUrl={templateUrl}
+            onGenerated={() => setGenerated(true)}
+          />
 
+          {/* Ready state */}
           {generated && (
-            <p
+            <div
+              className="anim-in"
               style={{
-                textAlign: 'center',
                 marginTop: 14,
-                color: '#4ade80',
-                fontSize: 14,
-                fontWeight: 500,
+                padding: '11px 16px',
+                background: 'rgba(27,58,107,0.05)',
+                borderRadius: 10,
+                border: '1px solid rgba(27,58,107,0.12)',
+                textAlign: 'center',
               }}
             >
-              ✅ Card ready! Click Download to save.
-            </p>
+              <p style={{ color: '#1B3A6B', fontSize: 13, fontWeight: 600 }}>
+                Card ready — click Download to save
+              </p>
+            </div>
           )}
 
+          {/* No template */}
           {!templateUrl && templateLoaded && (
             <p
               style={{
                 textAlign: 'center',
                 marginTop: 14,
-                color: 'rgba(255,255,255,0.4)',
+                color: '#BDB0A0',
                 fontSize: 13,
               }}
             >
-              No template uploaded yet. Admin must upload a card template first.
+              No template uploaded yet. An admin must upload the card template first.
             </p>
           )}
         </div>
       </div>
 
-      {/* Footer */}
-      <footer
-        style={{
-          textAlign: 'center',
-          marginTop: 48,
-          color: 'rgba(255,255,255,0.3)',
-          fontSize: 13,
-        }}
-      >
-        <p style={{ fontWeight: 700, color: 'rgba(0,0,0,0.8)', marginBottom: 4, fontSize: 14 }}>
-          Powered By ANEX Business Solution
+      {/* ── Footer ───────────────────────────────────── */}
+      <footer style={{ textAlign: 'center', marginTop: 56 }}>
+        {/* Red-gold-navy tri-line accent */}
+        <div
+          style={{
+            height: '1.5px',
+            background:
+              'linear-gradient(90deg, transparent, #C8102E 20%, #C8960C 50%, #1B3A6B 80%, transparent)',
+            maxWidth: 200,
+            margin: '0 auto 20px',
+          }}
+        />
+
+        <p
+          style={{
+            fontSize: 13,
+            fontWeight: 800,
+            color: '#1B3A6B',
+            letterSpacing: 0.5,
+            marginBottom: 5,
+          }}
+        >
+          ANEX Business Solution
         </p>
-        <p style={{ fontSize: 13, color: 'rgba(0,0,0,0.6)', fontWeight: 500 }}>A gift to LPL Employees for this EID.</p>
+        <p style={{ fontSize: 12, color: '#A0A0B8', fontWeight: 400 }}>
+          A special gift to LPL Employees this Eid Al-Adha
+        </p>
       </footer>
     </main>
   );
