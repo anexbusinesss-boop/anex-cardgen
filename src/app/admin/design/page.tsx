@@ -1,15 +1,66 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AdminNav from '@/components/AdminNav';
 import Image from 'next/image';
+
+const ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/x-png']);
+const ALLOWED_EXT  = new Set(['jpg', 'jpeg', 'png']);
+
+/** Resize to max 1080×1080 and re-compress using browser Canvas. */
+function compressImage(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const img    = new window.Image();
+    const objUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+
+      const MAX = 1080;
+      let w = img.naturalWidth;
+      let h = img.naturalHeight;
+      if (w > MAX || h > MAX) {
+        if (w >= h) { h = Math.round((h / w) * MAX); w = MAX; }
+        else        { w = Math.round((w / h) * MAX); h = MAX; }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width  = w;
+      canvas.height = h;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+
+      const isPng = file.type === 'image/png' || file.type === 'image/x-png'
+        || file.name.toLowerCase().endsWith('.png');
+
+      // Try PNG; if still > 3 MB after resize, fall back to JPEG
+      canvas.toBlob((pngBlob) => {
+        if (!pngBlob) { resolve(file); return; }
+
+        if (isPng && pngBlob.size <= 3 * 1024 * 1024) {
+          resolve(new File([pngBlob], file.name.replace(/\.[^.]+$/, '.png'), { type: 'image/png' }));
+          return;
+        }
+
+        // Convert to JPEG for large images
+        canvas.toBlob((jpgBlob) => {
+          if (!jpgBlob) { resolve(file); return; }
+          resolve(new File([jpgBlob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.92);
+      }, isPng ? 'image/png' : 'image/jpeg', isPng ? undefined : 0.92);
+    };
+
+    img.onerror = () => { URL.revokeObjectURL(objUrl); resolve(file); };
+    img.src = objUrl;
+  });
+}
 
 export default function AdminDesignPage() {
   const [currentTemplate, setCurrentTemplate] = useState<string | null>(null);
   const [selectedFile,    setSelectedFile]    = useState<File | null>(null);
   const [previewUrl,      setPreviewUrl]      = useState<string | null>(null);
   const [uploading,       setUploading]       = useState(false);
-  const [message,         setMessage]         = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [compressing,     setCompressing]     = useState(false);
+  const [message,         setMessage]         = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [loadingTemplate, setLoadingTemplate] = useState(true);
 
   useEffect(() => {
@@ -20,21 +71,38 @@ export default function AdminDesignPage() {
       .finally(() => setLoadingTemplate(false));
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.files?.[0];
+    if (!raw) return;
+
+    const ext = (raw.name.split('.').pop() ?? '').toLowerCase();
+    if (!ALLOWED_MIME.has(raw.type.toLowerCase()) && !ALLOWED_EXT.has(ext)) {
       setMessage({ type: 'error', text: 'Only JPG and PNG files are accepted.' });
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setMessage({ type: 'error', text: 'File must be under 10 MB.' });
+    if (raw.size > 50 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'File must be under 50 MB.' });
       return;
     }
+
+    // Auto-compress files larger than 3 MB before uploading
+    let file = raw;
+    if (raw.size > 3 * 1024 * 1024) {
+      setCompressing(true);
+      setMessage({ type: 'info', text: 'Compressing image…' });
+      file = await compressImage(raw);
+      setCompressing(false);
+      setMessage({
+        type: 'info',
+        text: `Compressed ${(raw.size / 1024 / 1024).toFixed(1)} MB → ${(file.size / 1024 / 1024).toFixed(1)} MB`,
+      });
+    } else {
+      setMessage(null);
+    }
+
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
-    setMessage(null);
-  };
+  }, []);
 
   const handleUpload = async () => {
     if (!selectedFile) return;
@@ -44,8 +112,14 @@ export default function AdminDesignPage() {
     formData.append('template', selectedFile);
     try {
       const res  = await fetch('/api/admin/upload', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (res.ok) {
+      let data: { url?: string; error?: string; details?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        setMessage({ type: 'error', text: `Server error (HTTP ${res.status}). Check server logs.` });
+        return;
+      }
+      if (res.ok && data.url) {
         setCurrentTemplate(data.url);
         setSelectedFile(null);
         setPreviewUrl(null);
@@ -53,11 +127,14 @@ export default function AdminDesignPage() {
         const input = document.getElementById('template-input') as HTMLInputElement;
         if (input) input.value = '';
       } else {
-        const errText = data.details ? `${data.error}: ${data.details}` : (data.error || 'Upload failed. Please try again.');
+        const errText = data.details
+          ? `${data.error}: ${data.details}`
+          : (data.error || 'Upload failed. Please try again.');
         setMessage({ type: 'error', text: errText });
       }
-    } catch {
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setMessage({ type: 'error', text: `Network error: ${msg}` });
     } finally {
       setUploading(false);
     }
@@ -169,11 +246,18 @@ export default function AdminDesignPage() {
             {/* Status message */}
             {message && (
               <div style={{
-                background: message.type === 'success' ? 'rgba(22,163,74,0.07)' : 'rgba(200,16,46,0.07)',
-                border: `1px solid ${message.type === 'success' ? 'rgba(22,163,74,0.22)' : 'rgba(200,16,46,0.22)'}`,
+                background: message.type === 'success' ? 'rgba(22,163,74,0.07)'
+                  : message.type === 'info' ? 'rgba(27,58,107,0.06)'
+                  : 'rgba(200,16,46,0.07)',
+                border: `1px solid ${
+                  message.type === 'success' ? 'rgba(22,163,74,0.22)'
+                  : message.type === 'info' ? 'rgba(27,58,107,0.18)'
+                  : 'rgba(200,16,46,0.22)'}`,
                 borderRadius: 10,
                 padding: '11px 16px',
-                color: message.type === 'success' ? '#16a34a' : '#C8102E',
+                color: message.type === 'success' ? '#16a34a'
+                  : message.type === 'info' ? '#1B3A6B'
+                  : '#C8102E',
                 fontSize: 13,
                 fontWeight: 500,
                 marginBottom: 14,
@@ -186,9 +270,9 @@ export default function AdminDesignPage() {
               id="upload-btn"
               className="btn-generate"
               onClick={handleUpload}
-              disabled={!selectedFile || uploading}
+              disabled={!selectedFile || uploading || compressing}
             >
-              {uploading ? 'Uploading…' : 'Upload & Activate Template'}
+              {uploading ? 'Uploading…' : compressing ? 'Compressing…' : 'Upload & Activate Template'}
             </button>
 
             {/* Note */}
